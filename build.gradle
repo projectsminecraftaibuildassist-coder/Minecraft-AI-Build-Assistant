@@ -34,8 +34,8 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	implementation 'org.codehaus.groovy:groovy:3.0.17'
-    	implementation 'org.codehaus.groovy:groovy-json:3.0.17'
+	include implementation('org.codehaus.groovy:groovy:3.0.17')
+	include implementation('org.codehaus.groovy:groovy-json:3.0.17')
 	
 }
 

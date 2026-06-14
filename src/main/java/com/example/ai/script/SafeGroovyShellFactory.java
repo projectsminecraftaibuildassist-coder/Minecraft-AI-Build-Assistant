@@ -18,8 +18,6 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.net.Socket;
 import java.net.URL;
-import java.util.Collections;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -58,6 +56,7 @@ public final class SafeGroovyShellFactory {
     );
 
     private static final Set<String> FORBIDDEN_METHOD_NAMES = Set.of(
+        "getclass",
         "getenv",
         "getproperties",
         "getruntime",
@@ -74,6 +73,7 @@ public final class SafeGroovyShellFactory {
 
     public static GroovyShell createShell(Binding binding) {
         CompilerConfiguration configuration = new CompilerConfiguration();
+        configuration.setScriptBaseClass(AiBuildScriptBase.class.getName());
         configuration.addCompilationCustomizers(buildSecureAstCustomizer());
         return new GroovyShell(binding, configuration);
     }
@@ -81,11 +81,23 @@ public final class SafeGroovyShellFactory {
     private static SecureASTCustomizer buildSecureAstCustomizer() {
         SecureASTCustomizer secure = new SecureASTCustomizer();
 
-        // Groovy 3.0.x: deny imports by using empty whitelists (there is no setImportsAllowed flag).
-        secure.setAllowedImports(Collections.emptyList());
-        secure.setAllowedStaticImports(Collections.emptyList());
-        secure.setAllowedStarImports(Collections.emptyList());
-        secure.setAllowedStaticStarImports(Collections.emptyList());
+        // Groovy 3.0.x: import rules are whitelist OR blacklist, never both.
+        // Empty whitelists block even java.lang.Object and prevent any script from compiling.
+        // Use blacklist-only here; explicit "import" lines are already rejected by ScriptSecurityValidator.
+        secure.setImportsBlacklist(List.of(
+            "java.io",
+            "java.net",
+            "java.nio",
+            "java.lang.reflect",
+            "java.lang.System",
+            "java.lang.Runtime",
+            "java.lang.ProcessBuilder",
+            "java.lang.Thread",
+            "java.lang.Class",
+            "groovy.lang.GroovyShell",
+            "groovy.lang.Binding",
+            "groovy.util.Eval"
+        ));
         secure.setIndirectImportCheckEnabled(true);
 
         // Scripts must be a single compilation unit without package statements.
@@ -103,27 +115,13 @@ public final class SafeGroovyShellFactory {
         // Block method pointers at the expression level (known SecureASTCustomizer bypass vector).
         secure.setExpressionsBlacklist(List.of(MethodPointerExpression.class));
 
-        // Blacklist dangerous packages even if an import slips through indirect resolution.
-        secure.setImportsBlacklist(Arrays.asList(
-            "java.io",
-            "java.net",
-            "java.nio",
-            "java.lang.reflect",
-            "java.lang.System",
-            "java.lang.Runtime",
-            "java.lang.ProcessBuilder",
-            "java.lang.Thread",
-            "java.lang.Class",
-            "groovy.lang.GroovyShell",
-            "groovy.lang.Binding",
-            "groovy.util.Eval"
-        ));
-
-        // Only allow method calls on the Minecraft AI surface and plain data types.
+        // Do not set constantTypesClassesWhiteList: it rejects Object-typed variables such as "ai".
         secure.setReceiversClassesWhiteList(List.of(
             AiScriptFacade.class,
+            AiBuildScriptBase.class,
             MethodClosure.class,
             MinecraftAI.class,
+            Object.class,
             String.class,
             Integer.class,
             Long.class,
@@ -135,17 +133,6 @@ public final class SafeGroovyShellFactory {
             Math.class,
             groovy.lang.IntRange.class,
             groovy.lang.ObjectRange.class
-        ));
-
-        // Literals used in loops and coordinates.
-        secure.setConstantTypesClassesWhiteList(List.of(
-            String.class,
-            Integer.class,
-            Long.class,
-            Double.class,
-            Float.class,
-            Boolean.class,
-            BigDecimal.class
         ));
 
         secure.addExpressionCheckers(SafeGroovyShellFactory::isExpressionAuthorized);

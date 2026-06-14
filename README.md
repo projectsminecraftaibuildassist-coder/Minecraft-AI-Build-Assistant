@@ -42,6 +42,8 @@ Unlike command-based builders, this mod:
    - Release: `minecraft-ai-build-assistant-<version>.jar`
    - Local build: `build/libs/minecraft-ai-build-assistant-<version>.jar`
 
+**Important:** Use the main JAR only. Do **not** put `*-sources.jar` in `mods/` (it will crash on startup).
+
 ## Usage
 
 ### Controls
@@ -97,7 +99,17 @@ Example templates (no secrets) are in [`config-examples/`](config-examples/).
 ### Other Options
 
 - **Build Speed**: Ticks per block (placement rate)
-- **Debug Log**: Verbose logging on/off
+- **Debug Log**: Verbose logging (off by default; may print prompts and generated scripts to the log)
+
+### Groovy Sandbox
+
+AI-generated scripts run through three compile-time checks before placement:
+
+1. `ScriptSecurityValidator` — rejects dangerous source patterns before parsing
+2. `SafeGroovyShellFactory` — `SecureASTCustomizer` limits imports, receivers, and expressions
+3. User approval — nothing is placed until you click **Accept**
+
+This is a strong filter, not a full JVM sandbox. Do not run untrusted AI output on a production server without review.
 
 ## Config Files
 
@@ -179,8 +191,8 @@ Before uploading to GitHub or sharing a ZIP:
 1. **Include only source** — `src/`, `gradle/`, `gradlew*`, `build.gradle`, `settings.gradle`, `gradle.properties`, `LICENSE`, `README.md`, `CHANGELOG.md`, `config-examples/`, `tools/` (optional)
 2. **Never include** — `run/`, `build/`, `.gradle/`, `_decompiled/`, `_recovered/`, `_tools/`
 3. **Never include** — any `settings.json` containing a real API key (use `config-examples/settings.json.example` instead)
-4. **Verify** — search the upload for `sk-proj`, `sk-`, or your Windows username path before publishing
-5. **Release JAR only** — attach `build/libs/minecraft-ai-build-assistant-<version>.jar`, not the whole project folder
+4. **Verify** — search the upload for `sk-proj`, `sk-`, machine-specific paths (e.g. `C:\Users\...`), and Minecraft player names in comments or logs
+5. **Release JAR only** — attach `build/libs/minecraft-ai-build-assistant-<version>.jar` (not `*-sources.jar`, not the whole project folder)
 
 If an API key was ever saved locally, rotate it in the OpenAI dashboard before publishing.
 
@@ -193,8 +205,3 @@ If an API key was ever saved locally, rotate it in the OpenAI dashboard before p
 - OpenAI requires an API key stored in local settings.
 - In multiplayer, settings sync to the server; forbidden blocks are enforced on the server.
 - Build quality depends on the model and prompt; complex builds may need iteration.
-
-## AI Usage
-
-This project was developed with the assistance of generative AI tools.
-Generated code, documentation, and design suggestions were reviewed and modified before inclusion.

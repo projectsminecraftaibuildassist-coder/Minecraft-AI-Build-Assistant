@@ -27,7 +27,7 @@ public final class AiBuilderConfig {
     public int ticksPerBlock = 5;
     public String forbiddenBlocksPath = "config/ai_builder/forbidden_blocks.txt";
     public List<String> forbiddenBlocks = new ArrayList<>(ForbiddenBlockRegistry.defaultBlocks());
-    public boolean debugLogEnabled = true;
+    public boolean debugLogEnabled = false;
     public boolean openAiWebSearchEnabled = false;
 
     private AiBuilderConfig() {

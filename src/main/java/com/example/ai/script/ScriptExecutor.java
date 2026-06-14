@@ -71,7 +71,6 @@ public final class ScriptExecutor {
 
     private static Binding createBinding() {
         Binding binding = new Binding();
-        binding.setVariable("ai", new AiScriptFacade());
         for (String method : AiScriptApi.METHOD_NAMES) {
             binding.setVariable(method, new MethodClosure(MinecraftAI.class, method));
         }
