@@ -1,0 +1,33 @@
+package com.example.ai.script;
+
+import java.util.List;
+
+public final class AiScriptApi {
+
+    public static final List<String> METHOD_NAMES = List.of(
+        "placeBlock",
+        "placeBox",
+        "placePillar",
+        "placeFloor",
+        "placeRoof",
+        "placeWall",
+        "clearArea",
+        "getFacing",
+        "getForwardX",
+        "getForwardZ",
+        "getGroundLevel",
+        "getBlock",
+        "canPlace",
+        "isSolid",
+        "inspectColumn",
+        "scanForward",
+        "scanArea",
+        "searchBlocks",
+        "listBlocks",
+        "getBlockListCount",
+        "isBlockAllowed"
+    );
+
+    private AiScriptApi() {
+    }
+}

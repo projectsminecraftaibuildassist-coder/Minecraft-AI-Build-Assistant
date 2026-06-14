@@ -1,0 +1,134 @@
+package com.example.ai.script;
+
+import com.example.ai.api.MinecraftAI;
+
+public final class AiScriptFacade {
+
+    public void placeBlock(Number x, Number y, Number z, String blockName) {
+        MinecraftAI.placeBlock(x, y, z, blockName);
+    }
+
+    public void placeBlock(String blockName, Number x, Number y, Number z) {
+        MinecraftAI.placeBlock(blockName, x, y, z);
+    }
+
+    public void placeBox(Number x, Number y, Number z, Number w, Number h, Number l, String blockName) {
+        MinecraftAI.placeBox(x, y, z, w, h, l, blockName);
+    }
+
+    public void placeBox(String blockName, Number x, Number y, Number z, Number w, Number h, Number l) {
+        MinecraftAI.placeBox(blockName, x, y, z, w, h, l);
+    }
+
+    public void placePillar(Number x, Number y, Number z, Number h, String blockName) {
+        MinecraftAI.placePillar(x, y, z, h, blockName);
+    }
+
+    public void placePillar(String blockName, Number x, Number y, Number z, Number h) {
+        MinecraftAI.placePillar(blockName, x, y, z, h);
+    }
+
+    public void placeFloor(Number x, Number y, Number z, Number w, Number l, String blockName) {
+        MinecraftAI.placeFloor(x, y, z, w, l, blockName);
+    }
+
+    public void placeFloor(String blockName, Number x, Number y, Number z, Number w, Number l) {
+        MinecraftAI.placeFloor(blockName, x, y, z, w, l);
+    }
+
+    public void placeFloor(Number x, Number y, Number z, Number w, Number l) {
+        MinecraftAI.placeFloor(x, y, z, w, l);
+    }
+
+    public void placeRoof(Number x, Number y, Number z, Number w, Number l, String blockName) {
+        MinecraftAI.placeRoof(x, y, z, w, l, blockName);
+    }
+
+    public void placeRoof(String blockName, Number x, Number y, Number z, Number w, Number l) {
+        MinecraftAI.placeRoof(blockName, x, y, z, w, l);
+    }
+
+    public void placeRoof(Number x, Number y, Number z, Number w, Number l) {
+        MinecraftAI.placeRoof(x, y, z, w, l);
+    }
+
+    public void placeWall(Number x, Number y, Number z, Number h, Number l, String first, String second) {
+        MinecraftAI.placeWall(x, y, z, h, l, first, second);
+    }
+
+    public void placeWall(String blockName, Number x, Number y, Number z, Number h, Number l, String direction) {
+        MinecraftAI.placeWall(blockName, x, y, z, h, l, direction);
+    }
+
+    public void clearArea(Number x, Number y, Number z, Number w, Number l) {
+        MinecraftAI.clearArea(x, y, z, w, l);
+    }
+
+    public void clearArea(Number x, Number y, Number z, Number w, Number h, Number l) {
+        MinecraftAI.clearArea(x, y, z, w, h, l);
+    }
+
+    public String getFacing() {
+        return MinecraftAI.getFacing();
+    }
+
+    public int getForwardX(Number distance) {
+        return MinecraftAI.getForwardX(distance);
+    }
+
+    public int getForwardZ(Number distance) {
+        return MinecraftAI.getForwardZ(distance);
+    }
+
+    public int getGroundLevel(Number x, Number z) {
+        return MinecraftAI.getGroundLevel(x, z);
+    }
+
+    public String getBlock(Number x, Number y, Number z) {
+        return MinecraftAI.getBlock(x, y, z);
+    }
+
+    public boolean canPlace(Number x, Number y, Number z) {
+        return MinecraftAI.canPlace(x, y, z);
+    }
+
+    public boolean isSolid(Number x, Number y, Number z) {
+        return MinecraftAI.isSolid(x, y, z);
+    }
+
+    public String inspectColumn(Number x, Number z) {
+        return MinecraftAI.inspectColumn(x, z);
+    }
+
+    public String scanForward(Number maxDistance) {
+        return MinecraftAI.scanForward(maxDistance);
+    }
+
+    public String scanArea(Number x, Number z, Number width, Number length) {
+        return MinecraftAI.scanArea(x, z, width, length);
+    }
+
+    public String listBlocks() {
+        return MinecraftAI.listBlocks();
+    }
+
+    public String listBlocks(Number offset, Number limit) {
+        return MinecraftAI.listBlocks(offset, limit);
+    }
+
+    public String searchBlocks(String query) {
+        return MinecraftAI.searchBlocks(query);
+    }
+
+    public String searchBlocks(String query, Number limit) {
+        return MinecraftAI.searchBlocks(query, limit);
+    }
+
+    public int getBlockListCount() {
+        return MinecraftAI.getBlockListCount();
+    }
+
+    public boolean isBlockAllowed(String blockName) {
+        return MinecraftAI.isBlockAllowed(blockName);
+    }
+}

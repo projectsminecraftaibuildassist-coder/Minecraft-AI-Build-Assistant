@@ -1,0 +1,327 @@
+package com.example.ai;
+
+import com.example.config.AiBuilderConfig;
+import com.example.config.AiProvider;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+
+public final class AiHttpService {
+
+    private static final HttpClient CLIENT = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(30))
+        .build();
+
+    private AiHttpService() {
+    }
+
+    public static HttpRequest buildRequest(String promptText) {
+        return buildRequest(promptText, false);
+    }
+
+    public static HttpRequest buildRequest(String promptText, boolean useWebSearch) {
+        AiBuilderConfig config = AiBuilderConfig.get();
+
+        return switch (config.provider) {
+            case OLLAMA -> buildOllamaRequest(config, promptText);
+            case OPENAI -> useWebSearch
+                ? buildOpenAiResponsesRequest(config, promptText)
+                : buildOpenAiRequest(config, promptText);
+            case CUSTOM -> buildCustomRequest(config, promptText);
+        };
+    }
+
+    public static String extractResponseBody(String rawBody, AiProvider provider) {
+        JsonObject root = JsonParser.parseString(rawBody).getAsJsonObject();
+
+        JsonObject error = getErrorObject(root);
+        if (error != null) {
+            throw new IllegalStateException(formatOpenAiError(error));
+        }
+
+        return switch (provider) {
+            case OLLAMA, CUSTOM -> {
+                if (!root.has("response")) {
+                    throw new IllegalStateException("No response field in AI response");
+                }
+                yield root.get("response").getAsString();
+            }
+            case OPENAI -> root.has("output")
+                ? extractOpenAiResponsesContent(root)
+                : extractOpenAiMessageContent(root);
+        };
+    }
+
+    public static List<String> extractOpenAiWebSearchQueries(String rawBody) {
+        List<String> queries = new ArrayList<>();
+
+        try {
+            JsonObject root = JsonParser.parseString(rawBody).getAsJsonObject();
+            if (!root.has("output")) {
+                return queries;
+            }
+
+            for (JsonElement element : root.getAsJsonArray("output")) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+
+                JsonObject item = element.getAsJsonObject();
+                if (!item.has("type") || !"web_search_call".equals(item.get("type").getAsString())) {
+                    continue;
+                }
+
+                if (item.has("action") && item.get("action").isJsonObject()) {
+                    JsonObject action = item.getAsJsonObject("action");
+                    if (action.has("query") && !action.get("query").isJsonNull()) {
+                        queries.add(action.get("query").getAsString());
+                    }
+                    if (action.has("queries") && action.get("queries").isJsonArray()) {
+                        for (JsonElement queryElement : action.getAsJsonArray("queries")) {
+                            if (!queryElement.isJsonNull()) {
+                                queries.add(queryElement.getAsString());
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+        }
+
+        return queries;
+    }
+
+    public static String extractHttpErrorMessage(String rawBody, int statusCode, AiProvider provider) {
+        if (rawBody != null && !rawBody.isBlank()) {
+            try {
+                JsonObject root = JsonParser.parseString(rawBody).getAsJsonObject();
+                JsonObject error = getErrorObject(root);
+                if (error != null) {
+                    return formatOpenAiError(error);
+                }
+            } catch (RuntimeException ignored) {
+            }
+        }
+
+        String endpoint = resolveEndpointForProvider(provider, AiBuilderConfig.get().apiUrl, false);
+        return "HTTP " + statusCode + " from " + endpoint;
+    }
+
+    public static String resolveEndpointForProvider(AiProvider provider, String apiUrl) {
+        return resolveEndpointForProvider(provider, apiUrl, false);
+    }
+
+    public static String resolveEndpointForProvider(AiProvider provider, String apiUrl, boolean useWebSearch) {
+        return switch (provider) {
+            case OLLAMA -> AiApiEndpoints.resolveOllamaGenerateUrl(apiUrl);
+            case OPENAI -> useWebSearch
+                ? AiApiEndpoints.resolveOpenAiResponsesUrl(apiUrl)
+                : AiApiEndpoints.resolveOpenAiChatCompletionsUrl(apiUrl);
+            case CUSTOM -> apiUrl;
+        };
+    }
+
+    public static HttpClient client() {
+        return CLIENT;
+    }
+
+    private static HttpRequest buildOllamaRequest(AiBuilderConfig config, String promptText) {
+        JsonObject requestJson = new JsonObject();
+        requestJson.addProperty("model", config.modelName);
+        requestJson.addProperty("stream", false);
+        requestJson.addProperty("prompt", promptText);
+
+        String endpoint = AiApiEndpoints.resolveOllamaGenerateUrl(config.apiUrl);
+        return HttpRequest.newBuilder()
+            .uri(URI.create(endpoint))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(requestJson.toString()))
+            .build();
+    }
+
+    private static HttpRequest buildOpenAiRequest(AiBuilderConfig config, String promptText) {
+        String apiKey = AiApiEndpoints.normalizeApiKey(config.apiKey);
+        if (apiKey.isBlank()) {
+            throw new IllegalStateException("OpenAI API key is required");
+        }
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.addProperty("model", config.modelName);
+
+        JsonArray messages = new JsonArray();
+        JsonObject userMessage = new JsonObject();
+        userMessage.addProperty("role", "user");
+        userMessage.addProperty("content", promptText);
+        messages.add(userMessage);
+        requestJson.add("messages", messages);
+
+        String endpoint = AiApiEndpoints.resolveOpenAiChatCompletionsUrl(config.apiUrl);
+        return HttpRequest.newBuilder()
+            .uri(URI.create(endpoint))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .header("Authorization", "Bearer " + apiKey)
+            .POST(HttpRequest.BodyPublishers.ofString(requestJson.toString()))
+            .build();
+    }
+
+    private static HttpRequest buildOpenAiResponsesRequest(AiBuilderConfig config, String promptText) {
+        String apiKey = AiApiEndpoints.normalizeApiKey(config.apiKey);
+        if (apiKey.isBlank()) {
+            throw new IllegalStateException("OpenAI API key is required");
+        }
+
+        JsonObject requestJson = new JsonObject();
+        requestJson.addProperty("model", config.modelName);
+        requestJson.addProperty("input", promptText);
+
+        JsonArray tools = new JsonArray();
+        JsonObject webSearchTool = new JsonObject();
+        webSearchTool.addProperty("type", "web_search");
+        tools.add(webSearchTool);
+        requestJson.add("tools", tools);
+
+        String endpoint = AiApiEndpoints.resolveOpenAiResponsesUrl(config.apiUrl);
+        return HttpRequest.newBuilder()
+            .uri(URI.create(endpoint))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .header("Authorization", "Bearer " + apiKey)
+            .timeout(Duration.ofSeconds(120))
+            .POST(HttpRequest.BodyPublishers.ofString(requestJson.toString()))
+            .build();
+    }
+
+    private static HttpRequest buildCustomRequest(AiBuilderConfig config, String promptText) {
+        JsonObject requestJson = new JsonObject();
+        requestJson.addProperty("model", config.modelName);
+        requestJson.addProperty("stream", false);
+        requestJson.addProperty("prompt", promptText);
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+            .uri(URI.create(config.apiUrl))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(requestJson.toString()));
+
+        String apiKey = AiApiEndpoints.normalizeApiKey(config.apiKey);
+        if (!apiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + apiKey);
+        }
+
+        return builder.build();
+    }
+
+    private static String extractOpenAiMessageContent(JsonObject root) {
+        if (!root.has("choices")) {
+            throw new IllegalStateException("No choices field in OpenAI response");
+        }
+
+        JsonArray choices = root.getAsJsonArray("choices");
+        if (choices.isEmpty()) {
+            throw new IllegalStateException("OpenAI response contained no choices");
+        }
+
+        JsonObject firstChoice = choices.get(0).getAsJsonObject();
+        if (!firstChoice.has("message")) {
+            throw new IllegalStateException("OpenAI response missing message object");
+        }
+
+        JsonObject message = firstChoice.getAsJsonObject("message");
+        if (!message.has("content")) {
+            throw new IllegalStateException("OpenAI response missing message content");
+        }
+
+        JsonElement content = message.get("content");
+        if (content.isJsonNull()) {
+            throw new IllegalStateException("OpenAI response content was null");
+        }
+
+        return content.getAsString();
+    }
+
+    private static String extractOpenAiResponsesContent(JsonObject root) {
+        if (root.has("output_text") && !root.get("output_text").isJsonNull()) {
+            return root.get("output_text").getAsString();
+        }
+
+        if (!root.has("output") || !root.get("output").isJsonArray()) {
+            throw new IllegalStateException("No output field in OpenAI Responses API response");
+        }
+
+        StringBuilder content = new StringBuilder();
+        for (JsonElement element : root.getAsJsonArray("output")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+
+            JsonObject item = element.getAsJsonObject();
+            if (!item.has("type") || !"message".equals(item.get("type").getAsString())) {
+                continue;
+            }
+
+            if (!item.has("content") || !item.get("content").isJsonArray()) {
+                continue;
+            }
+
+            for (JsonElement part : item.getAsJsonArray("content")) {
+                if (!part.isJsonObject()) {
+                    continue;
+                }
+
+                JsonObject partObject = part.getAsJsonObject();
+                if (partObject.has("text") && !partObject.get("text").isJsonNull()) {
+                    content.append(partObject.get("text").getAsString());
+                }
+            }
+        }
+
+        if (content.isEmpty()) {
+            throw new IllegalStateException("OpenAI Responses API returned no text output");
+        }
+
+        return content.toString();
+    }
+
+    private static JsonObject getErrorObject(JsonObject root) {
+        if (root == null || !root.has("error")) {
+            return null;
+        }
+
+        JsonElement errorElement = root.get("error");
+        if (errorElement.isJsonNull() || !errorElement.isJsonObject()) {
+            return null;
+        }
+
+        return errorElement.getAsJsonObject();
+    }
+
+    private static String formatOpenAiError(JsonObject error) {
+        if (error == null) {
+            return "Unknown API error";
+        }
+
+        StringBuilder message = new StringBuilder();
+        if (error.has("message")) {
+            message.append(error.get("message").getAsString());
+        } else {
+            message.append("Unknown API error");
+        }
+
+        if (error.has("type") && !error.get("type").isJsonNull()) {
+            message.append(" (").append(error.get("type").getAsString()).append(")");
+        }
+
+        return message.toString();
+    }
+}
