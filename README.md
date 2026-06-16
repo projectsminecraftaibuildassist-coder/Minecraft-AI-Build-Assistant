@@ -17,13 +17,10 @@ Supports:
 
 ## Screenshots
 
-Place PNG files in [`docs/screenshots/`](docs/screenshots/).
+![Minecraft AI Build Assistant screenshot](docs/screenshots/showcase.png)
 
-| Main panel | Settings | Built structure |
-|:--:|:--:|:--:|
-| ![Main panel](docs/screenshots/panel.png) | ![Settings](docs/screenshots/settings.png) | ![Built structure](docs/screenshots/build-result.png) |
-
-Recommended files: `panel.png`, `settings.png`, `build-result.png`. Hide chat, player names, coordinates, and API keys before capturing.
+Screenshot files live in [`docs/screenshots/`](docs/screenshots/). For the best GitHub preview, upload `showcase.png` first.
+Hide chat, player names, coordinates, and API keys before capturing.
 
 ## Why is this different?
 
@@ -198,7 +195,7 @@ Output: `build/libs/minecraft-ai-build-assistant-<version>.jar`
 
 Before uploading to GitHub or sharing a ZIP:
 
-1. **Include only source** — `src/`, `gradle/`, `gradlew*`, `build.gradle`, `settings.gradle`, `gradle.properties`, `LICENSE`, `README.md`, `CHANGELOG.md`, `config-examples/`, `docs/screenshots/` (PNG only), `.gitignore`
+1. **Include only source** — `src/`, `gradle/`, `gradlew*`, `build.gradle`, `settings.gradle`, `gradle.properties`, `LICENSE`, `README.md`, `CHANGELOG.md`, `config-examples/`, `docs/screenshots/showcase.png`, `.gitignore`
 2. **Never include** — `run/`, `build/`, `.gradle/`, `_decompiled/`, `_recovered/`, `_tools/`
 3. **Never include** — any `settings.json` containing a real API key (use `config-examples/settings.json.example` instead)
 4. **Verify** — search the upload for `sk-proj`, `sk-`, machine-specific paths (e.g. `C:\Users\...`), and Minecraft player names in comments or logs
